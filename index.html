@@ -1,0 +1,1849 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Janus — Sovereign OCI Registry</title>
+<meta name="description" content="A self-hosted, multi-tenant OCI registry with mTLS-everywhere, Cosign-native signing, immutable audit logs, and zero cloud lock-in." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+<style>
+  /* =========================================================================
+     JANUS — landing
+     Dark glassmorphism · crypto-native terminal aesthetic
+     ========================================================================= */
+
+  :root {
+    --bg-0: #050609;
+    --bg-1: #07080e;
+    --bg-2: #0a0c14;
+    --bg-3: #0e111c;
+
+    --fg: #e7e8ee;
+    --fg-2: #b6b9c8;
+    --fg-3: #6b7088;
+    --fg-4: #3f4358;
+
+    --line: rgba(255, 255, 255, 0.06);
+    --line-2: rgba(255, 255, 255, 0.10);
+    --line-strong: rgba(255, 255, 255, 0.18);
+
+    --glass-1: rgba(255, 255, 255, 0.025);
+    --glass-2: rgba(255, 255, 255, 0.04);
+    --glass-3: rgba(255, 255, 255, 0.06);
+
+    --lime: #b4ff39;
+    --lime-glow: rgba(180, 255, 57, 0.45);
+    --cyan: #22d3ee;
+    --cyan-glow: rgba(34, 211, 238, 0.40);
+    --magenta: #f43f8e;
+    --amber: #fbbf24;
+
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "Inter Tight", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --serif: "Instrument Serif", ui-serif, Georgia, serif;
+
+    --radius-xs: 4px;
+    --radius-sm: 6px;
+    --radius:    10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    background: var(--bg-0);
+    color-scheme: dark;
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg-0);
+    color: var(--fg);
+    font-size: 15px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  ::selection { background: var(--lime); color: var(--bg-0); }
+
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  svg { display: block; }
+
+  /* --- background layers ----------------------------------------------- */
+
+  .bg-fixed {
+    position: fixed; inset: 0;
+    z-index: -2; pointer-events: none;
+    background:
+      radial-gradient(ellipse 80% 50% at 80% -10%, rgba(34, 211, 238, 0.10), transparent 70%),
+      radial-gradient(ellipse 60% 50% at 0% 30%, rgba(180, 255, 57, 0.06), transparent 60%),
+      radial-gradient(ellipse 80% 40% at 50% 100%, rgba(244, 63, 142, 0.05), transparent 70%),
+      var(--bg-0);
+  }
+  .bg-grid {
+    position: fixed; inset: 0;
+    z-index: -1; pointer-events: none; opacity: 0.4;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse 100% 80% at 50% 30%, #000 30%, transparent 80%);
+  }
+  .bg-noise {
+    position: fixed; inset: 0;
+    z-index: 0; pointer-events: none; opacity: 0.025; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.6'/></svg>");
+  }
+
+  /* --- layout primitives ----------------------------------------------- */
+
+  .wrap {
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 32px;
+    position: relative;
+  }
+  @media (max-width: 720px) { .wrap { padding: 0 20px; } }
+
+  .glass {
+    position: relative;
+    background: linear-gradient(180deg, var(--glass-2), var(--glass-1));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+  }
+  .glass::before {
+    content: "";
+    position: absolute; inset: 0;
+    border-radius: inherit; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 30%);
+  }
+
+  .mono {
+    font-family: var(--mono);
+    font-feature-settings: "zero", "ss02";
+  }
+
+  /* --- chip / pill / tag ---------------------------------------------- */
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--fg-2);
+    background: var(--glass-2);
+    border: 1px solid var(--line-2);
+    border-radius: 999px;
+    backdrop-filter: blur(12px);
+  }
+  .chip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--lime);
+    box-shadow: 0 0 8px var(--lime-glow);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  .chip .dot.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan-glow); }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.85); }
+  }
+
+  /* --- buttons -------------------------------------------------------- */
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    height: 44px;
+    padding: 0 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    border-radius: 8px;
+    transition: transform 200ms var(--ease-out), background 200ms var(--ease-out), box-shadow 300ms var(--ease-out);
+    white-space: nowrap;
+  }
+  .btn .arrow { transition: transform 250ms var(--ease-out); }
+  .btn:hover .arrow { transform: translateX(3px); }
+
+  .btn--primary {
+    color: #07080e;
+    background: var(--lime);
+    box-shadow:
+      0 0 0 1px rgba(180,255,57,0.4),
+      0 10px 32px -8px var(--lime-glow),
+      inset 0 -1px 0 rgba(0,0,0,0.2);
+  }
+  .btn--primary:hover {
+    background: #c8ff63;
+    box-shadow:
+      0 0 0 1px rgba(180,255,57,0.6),
+      0 14px 40px -8px var(--lime-glow),
+      inset 0 -1px 0 rgba(0,0,0,0.2);
+  }
+  .btn--ghost {
+    color: var(--fg);
+    background: var(--glass-2);
+    border: 1px solid var(--line-2);
+  }
+  .btn--ghost:hover { background: var(--glass-3); border-color: var(--line-strong); }
+
+  .btn--sm { height: 36px; padding: 0 14px; font-size: 12px; }
+
+  /* --- nav ------------------------------------------------------------ */
+
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    background: linear-gradient(180deg, rgba(5,6,9,0.85), rgba(5,6,9,0.6));
+    border-bottom: 1px solid var(--line);
+  }
+  .nav__inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand__glyph {
+    width: 34px; height: 34px;
+    display: grid; place-items: center;
+    background: linear-gradient(135deg, rgba(180,255,57,0.18), rgba(34,211,238,0.12));
+    border: 1px solid rgba(180,255,57,0.30);
+    border-radius: 8px;
+    box-shadow: 0 0 24px -6px var(--lime-glow), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .brand__glyph svg { width: 18px; height: 18px; }
+  .brand__name {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+  .brand__name .slash { color: var(--lime); font-weight: 400; margin: 0 2px; }
+  .brand__ver {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--fg-3);
+    padding: 3px 7px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-left: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  .nav__links { display: flex; align-items: center; gap: 4px; }
+  .nav__links a {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--fg-2);
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: color 150ms, background 150ms;
+    letter-spacing: 0.02em;
+  }
+  .nav__links a:hover { color: var(--fg); background: var(--glass-2); }
+  @media (max-width: 880px) { .nav__links { display: none; } }
+
+  .nav__cta { display: flex; align-items: center; gap: 10px; }
+
+  /* --- hero ----------------------------------------------------------- */
+
+  .hero {
+    position: relative;
+    padding: 96px 0 80px;
+  }
+  .hero__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 56px;
+    align-items: center;
+  }
+  @media (max-width: 980px) {
+    .hero__layout { grid-template-columns: 1fr; gap: 48px; }
+    .hero { padding: 56px 0 56px; }
+  }
+
+  .hero__eyebrow {
+    display: inline-flex; align-items: center; gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .hero h1 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: clamp(40px, 6vw, 76px);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    margin-bottom: 28px;
+  }
+  .hero h1 .em {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: -0.025em;
+    background: linear-gradient(110deg, var(--lime) 30%, var(--cyan) 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .hero h1 .strike {
+    position: relative; color: var(--fg-3);
+    text-decoration: line-through;
+    text-decoration-color: var(--magenta);
+    text-decoration-thickness: 3px;
+  }
+
+  .hero__lede {
+    max-width: 540px;
+    color: var(--fg-2);
+    font-size: 17px;
+    line-height: 1.6;
+    margin-bottom: 36px;
+  }
+  .hero__lede em { color: var(--fg); font-style: normal; font-weight: 500; }
+
+  .hero__cta { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 44px; }
+
+  .hero__sig {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+  .hero__sig .k { color: var(--fg-2); }
+  .hero__sig .v { color: var(--lime); }
+  .hero__sig .sep { color: var(--fg-4); }
+
+  /* --- terminal panel ------------------------------------------------- */
+
+  .terminal {
+    position: relative;
+    background: linear-gradient(180deg, rgba(10, 12, 20, 0.9), rgba(7, 8, 14, 0.92));
+    border: 1px solid var(--line-2);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.4),
+      0 30px 60px -20px rgba(0,0,0,0.6),
+      0 0 80px -20px rgba(180,255,57,0.10);
+    backdrop-filter: blur(24px);
+  }
+  .terminal::after {
+    content: "";
+    position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), transparent 12%);
+    border-radius: inherit;
+  }
+  .terminal__head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(255,255,255,0.02);
+  }
+  .terminal__dots { display: flex; gap: 6px; }
+  .terminal__dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--fg-4); opacity: 0.7;
+  }
+  .terminal__dots span:nth-child(1) { background: #ff5f57; }
+  .terminal__dots span:nth-child(2) { background: #febc2e; }
+  .terminal__dots span:nth-child(3) { background: var(--lime); }
+  .terminal__title {
+    font-family: var(--mono); font-size: 11px; color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+  .terminal__title .repo { color: var(--fg-2); }
+
+  .terminal__body {
+    padding: 18px 18px 22px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--fg-2);
+  }
+  .terminal__body .row { display: block; min-height: 22px; }
+  .terminal__body .prompt { color: var(--lime); margin-right: 8px; }
+  .terminal__body .cmd { color: var(--fg); }
+  .terminal__body .out { color: var(--fg-2); }
+  .terminal__body .digest { color: var(--cyan); }
+  .terminal__body .ok { color: var(--lime); }
+  .terminal__body .warn { color: var(--amber); }
+  .terminal__body .danger { color: var(--magenta); }
+  .terminal__body .dim { color: var(--fg-3); }
+  .terminal__body .hash {
+    display: inline-block; padding: 1px 6px;
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--cyan); border-radius: 3px;
+    font-size: 11px;
+  }
+  .terminal__body .gap { height: 8px; display: block; }
+
+  .terminal__body .row { opacity: 0; transform: translateY(2px); animation: rowIn 480ms var(--ease-out) forwards; }
+  .terminal__body .row:nth-child(1)  { animation-delay: 0.05s; }
+  .terminal__body .row:nth-child(2)  { animation-delay: 0.35s; }
+  .terminal__body .row:nth-child(3)  { animation-delay: 0.55s; }
+  .terminal__body .row:nth-child(4)  { animation-delay: 0.75s; }
+  .terminal__body .row:nth-child(5)  { animation-delay: 0.95s; }
+  .terminal__body .row:nth-child(6)  { animation-delay: 1.15s; }
+  .terminal__body .row:nth-child(7)  { animation-delay: 1.45s; }
+  .terminal__body .row:nth-child(8)  { animation-delay: 1.65s; }
+  .terminal__body .row:nth-child(9)  { animation-delay: 1.85s; }
+  .terminal__body .row:nth-child(10) { animation-delay: 2.05s; }
+  .terminal__body .row:nth-child(11) { animation-delay: 2.30s; }
+  @keyframes rowIn { to { opacity: 1; transform: translateY(0); } }
+
+  .cursor {
+    display: inline-block; width: 8px; height: 14px;
+    background: var(--lime); vertical-align: -2px;
+    animation: blink 1.05s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .terminal__badge {
+    position: absolute;
+    bottom: 14px; right: 14px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px;
+    font-family: var(--mono); font-size: 10px;
+    color: var(--lime);
+    background: rgba(180,255,57,0.08);
+    border: 1px solid rgba(180,255,57,0.25);
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+  }
+  .terminal__badge svg { width: 12px; height: 12px; }
+
+  /* --- corner ticks (terminal accent) --------------------------------- */
+
+  .ticks {
+    position: absolute; inset: -10px; pointer-events: none;
+  }
+  .ticks::before, .ticks::after,
+  .ticks > i::before, .ticks > i::after {
+    content: ""; position: absolute;
+    width: 14px; height: 14px;
+    border: 1px solid var(--lime);
+    opacity: 0.6;
+  }
+  .ticks::before        { top: 0;    left: 0;    border-right: 0; border-bottom: 0; }
+  .ticks::after         { top: 0;    right: 0;   border-left: 0;  border-bottom: 0; }
+  .ticks > i::before    { bottom: 0; left: 0;    border-right: 0; border-top: 0;    }
+  .ticks > i::after     { bottom: 0; right: 0;   border-left: 0;  border-top: 0;    }
+
+  /* --- section heading ------------------------------------------------- */
+
+  .section { padding: 96px 0; position: relative; }
+  @media (max-width: 720px) { .section { padding: 64px 0; } }
+
+  .section__head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 32px; margin-bottom: 48px;
+  }
+  @media (max-width: 720px) {
+    .section__head { flex-direction: column; align-items: flex-start; gap: 16px; }
+  }
+  .section__head .lhs { max-width: 760px; }
+  .section__head .index {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--lime); letter-spacing: 0.18em;
+    text-transform: uppercase; margin-bottom: 14px;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .section__head .index::before {
+    content: ""; width: 24px; height: 1px; background: var(--lime);
+  }
+  .section__head h2 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: clamp(28px, 4vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+  }
+  .section__head h2 .em {
+    font-family: var(--serif);
+    font-weight: 400;
+    font-style: italic;
+    color: var(--cyan);
+  }
+  .section__head .rhs {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--fg-3); letter-spacing: 0.05em;
+    text-align: right;
+  }
+  .section__head .rhs .v { color: var(--fg); }
+
+  /* --- stats strip ---------------------------------------------------- */
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--glass-1);
+    backdrop-filter: blur(20px);
+  }
+  @media (max-width: 820px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stats__cell {
+    padding: 28px 28px;
+    border-right: 1px solid var(--line);
+    position: relative;
+  }
+  .stats__cell:last-child { border-right: 0; }
+  @media (max-width: 820px) {
+    .stats__cell:nth-child(even) { border-right: 0; }
+    .stats__cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+  }
+  .stats__cell .label {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--fg-3); letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .stats__cell .label::before {
+    content: ""; width: 4px; height: 4px;
+    background: var(--lime); border-radius: 50%;
+  }
+  .stats__cell .num {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--fg);
+    margin-bottom: 8px;
+  }
+  .stats__cell .num .unit { font-size: 18px; color: var(--fg-3); margin-left: 6px; font-weight: 400; }
+  .stats__cell .sub { font-size: 13px; color: var(--fg-3); line-height: 1.4; }
+
+  /* --- comparison ----------------------------------------------------- */
+
+  .cmp {
+    display: grid;
+    grid-template-columns: 1.4fr repeat(4, 1fr);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--glass-1);
+    backdrop-filter: blur(20px);
+    font-size: 13px;
+  }
+  @media (max-width: 880px) { .cmp { font-size: 12px; grid-template-columns: 1.6fr repeat(4, minmax(70px, 1fr)); } }
+  @media (max-width: 640px) {
+    .cmp { display: block; }
+    .cmp > div { display: grid; grid-template-columns: 1.4fr 1fr; }
+  }
+  .cmp > div {
+    padding: 14px 18px;
+    border-top: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    color: var(--fg-2);
+    display: flex; align-items: center;
+  }
+  .cmp > div:nth-child(5n) { border-right: 0; }
+  .cmp__head { color: var(--fg); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; border-top: 0 !important; }
+  .cmp__head.janus { color: var(--lime); position: relative; }
+  .cmp__head.janus::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(180,255,57,0.08), transparent 70%);
+  }
+  .cmp__row-label { color: var(--fg); font-weight: 500; }
+  .cmp .yes  { color: var(--lime); font-family: var(--mono); font-weight: 600; }
+  .cmp .no   { color: var(--fg-4); font-family: var(--mono); }
+  .cmp .meh  { color: var(--amber); font-family: var(--mono); font-size: 12px; }
+  .cmp .yes::before { content: "● "; }
+  .cmp .no::before  { content: "○ "; }
+  .cmp .meh::before { content: "◐ "; }
+  .cmp .col-janus { background: linear-gradient(180deg, rgba(180,255,57,0.04), rgba(180,255,57,0.01)); }
+
+  /* --- features grid -------------------------------------------------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 880px) { .grid { grid-template-columns: repeat(6, 1fr); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    position: relative;
+    padding: 26px;
+    background: linear-gradient(180deg, var(--glass-2), var(--glass-1));
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+    transition: transform 300ms var(--ease-out), border-color 250ms;
+  }
+  .card:hover { border-color: var(--line-2); transform: translateY(-2px); }
+  .card::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 80% at 0% 0%, rgba(180,255,57,0.06), transparent 50%);
+    opacity: 0; transition: opacity 300ms;
+  }
+  .card:hover::before { opacity: 1; }
+
+  .card.col-6 { grid-column: span 6; }
+  .card.col-4 { grid-column: span 4; }
+  .card.col-3 { grid-column: span 3; }
+  .card.col-8 { grid-column: span 8; }
+  .card.col-12 { grid-column: span 12; }
+  @media (max-width: 880px) {
+    .card.col-6, .card.col-4, .card.col-3, .card.col-8, .card.col-12 { grid-column: span 6; }
+  }
+  @media (max-width: 560px) {
+    .card.col-6, .card.col-4, .card.col-3, .card.col-8, .card.col-12 { grid-column: span 1; }
+  }
+
+  .card__glyph {
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+    background: var(--glass-3);
+    color: var(--lime);
+    margin-bottom: 18px;
+  }
+  .card__glyph svg { width: 18px; height: 18px; }
+
+  .card__title {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 19px;
+    letter-spacing: -0.015em;
+    margin-bottom: 8px;
+    color: var(--fg);
+  }
+  .card__body {
+    color: var(--fg-2);
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 18px;
+  }
+  .card__meta {
+    display: flex; align-items: center; gap: 10px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+  .card__meta .k { color: var(--fg-4); }
+  .card__meta .v { color: var(--lime); }
+
+  /* --- architecture viz ---------------------------------------------- */
+
+  .arch {
+    padding: 36px;
+    background:
+      radial-gradient(circle at 50% 0%, rgba(34,211,238,0.07), transparent 60%),
+      var(--glass-1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+  @media (max-width: 720px) { .arch { padding: 22px; } }
+  .arch__grid {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.4;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .arch__row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    position: relative;
+  }
+  @media (max-width: 720px) { .arch__row { grid-template-columns: repeat(2, 1fr); } }
+  .arch__row + .arch__row { margin-top: 28px; position: relative; }
+
+  /* connectors */
+  .arch__row + .arch__row::before {
+    content: ""; position: absolute;
+    left: 12.5%; right: 12.5%; top: -14px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-strong) 20%, var(--line-strong) 80%, transparent);
+  }
+
+  .node {
+    padding: 16px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+    border: 1px solid var(--line-2);
+    border-radius: 10px;
+    position: relative;
+    min-height: 84px;
+  }
+  .node.gw {
+    background: linear-gradient(180deg, rgba(180,255,57,0.08), rgba(180,255,57,0.02));
+    border-color: rgba(180,255,57,0.30);
+  }
+  .node.async {
+    background: linear-gradient(180deg, rgba(244,63,142,0.05), rgba(244,63,142,0.01));
+    border-color: rgba(244,63,142,0.22);
+  }
+  .node__name {
+    font-family: var(--mono); font-size: 12px;
+    font-weight: 600; color: var(--fg);
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+  .node__name .pre { color: var(--lime); }
+  .node.async .node__name .pre { color: var(--magenta); }
+  .node__role {
+    font-size: 11px; color: var(--fg-3); line-height: 1.4;
+  }
+  .node__port {
+    position: absolute; top: 10px; right: 12px;
+    font-family: var(--mono); font-size: 9px; color: var(--fg-4);
+    letter-spacing: 0.04em;
+  }
+
+  .arch__legend {
+    display: flex; gap: 24px; flex-wrap: wrap;
+    margin-top: 28px; padding-top: 20px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--mono); font-size: 11px; color: var(--fg-3);
+  }
+  .arch__legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .arch__legend i {
+    width: 10px; height: 10px; border-radius: 2px; display: inline-block;
+  }
+  .i-gw    { background: rgba(180,255,57,0.4); border: 1px solid rgba(180,255,57,0.6); }
+  .i-svc   { background: rgba(255,255,255,0.10); border: 1px solid var(--line-strong); }
+  .i-async { background: rgba(244,63,142,0.30); border: 1px solid rgba(244,63,142,0.6); }
+
+  /* --- security pillars (split) -------------------------------------- */
+
+  .pillars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--glass-1);
+  }
+  @media (max-width: 720px) { .pillars { grid-template-columns: 1fr; } }
+  .pillar {
+    padding: 26px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .pillar:nth-child(2n) { border-right: 0; }
+  .pillar:nth-last-child(-n+2) { border-bottom: 0; }
+  @media (max-width: 720px) {
+    .pillar { border-right: 0; }
+    .pillar:nth-last-child(2) { border-bottom: 1px solid var(--line); }
+  }
+  .pillar__id {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--lime); letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: inline-block;
+    padding: 2px 6px;
+    background: rgba(180,255,57,0.06);
+    border: 1px solid rgba(180,255,57,0.18);
+    border-radius: 3px;
+  }
+  .pillar__title {
+    font-family: var(--sans);
+    font-weight: 500; font-size: 18px;
+    letter-spacing: -0.015em;
+    margin-bottom: 8px;
+  }
+  .pillar__body { color: var(--fg-2); font-size: 13.5px; line-height: 1.55; margin-bottom: 14px; }
+  .pillar__hash {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--fg-3); display: flex; gap: 10px; align-items: center;
+  }
+  .pillar__hash .v { color: var(--cyan); }
+
+  /* --- CLI tabs ------------------------------------------------------- */
+
+  .cli {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 880px) { .cli { grid-template-columns: 1fr; } }
+
+  .cli__tabs {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 10px;
+    background: var(--glass-1);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  @media (max-width: 880px) { .cli__tabs { flex-direction: row; flex-wrap: wrap; } }
+
+  .cli__tab {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--fg-3);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 150ms, color 150ms;
+    width: 100%;
+  }
+  .cli__tab:hover { background: var(--glass-2); color: var(--fg-2); }
+  .cli__tab.active {
+    background: rgba(180,255,57,0.08);
+    color: var(--lime);
+    border: 1px solid rgba(180,255,57,0.20);
+  }
+  .cli__tab .ix {
+    font-size: 10px; color: var(--fg-4);
+    padding: 2px 5px; border: 1px solid var(--line);
+    border-radius: 3px;
+    margin-left: auto;
+  }
+  .cli__tab.active .ix { border-color: rgba(180,255,57,0.30); color: var(--lime); }
+
+  .cli__panel { min-height: 380px; }
+  .cli__panel pre {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--fg-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .cli__panel pre .prompt { color: var(--lime); }
+  .cli__panel pre .cmd { color: var(--fg); }
+  .cli__panel pre .ok { color: var(--lime); }
+  .cli__panel pre .warn { color: var(--amber); }
+  .cli__panel pre .hash { color: var(--cyan); }
+  .cli__panel pre .dim { color: var(--fg-3); }
+  .cli__view { display: none; padding: 22px; }
+  .cli__view.active { display: block; }
+
+  /* --- footer CTA / quickstart --------------------------------------- */
+
+  .cta {
+    position: relative;
+    margin: 80px 0 64px;
+    padding: 56px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    background:
+      radial-gradient(circle at 80% 20%, rgba(180,255,57,0.12), transparent 50%),
+      radial-gradient(circle at 0% 100%, rgba(34,211,238,0.10), transparent 50%),
+      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    backdrop-filter: blur(20px);
+    overflow: hidden;
+  }
+  @media (max-width: 720px) { .cta { padding: 32px 24px; margin: 56px 0; } }
+
+  .cta__inner {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+  @media (max-width: 880px) { .cta__inner { grid-template-columns: 1fr; } }
+
+  .cta h3 {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: clamp(28px, 4vw, 44px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin-bottom: 18px;
+  }
+  .cta h3 .em {
+    font-family: var(--serif); font-style: italic; font-weight: 400;
+    color: var(--lime);
+  }
+  .cta p { color: var(--fg-2); font-size: 16px; margin-bottom: 28px; max-width: 480px; }
+  .cta__buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  .cta__code {
+    background: rgba(5, 6, 9, 0.6);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    padding: 22px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--fg-2);
+  }
+  .cta__code .prompt { color: var(--lime); margin-right: 6px; }
+  .cta__code .cmd { color: var(--fg); }
+  .cta__code .out { color: var(--fg-3); }
+
+  /* --- footer -------------------------------------------------------- */
+
+  .foot {
+    border-top: 1px solid var(--line);
+    padding: 40px 0 56px;
+  }
+  .foot__top {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 32px; flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+  .foot__brand { max-width: 360px; }
+  .foot__brand p {
+    font-size: 13px; color: var(--fg-3); margin-top: 14px; line-height: 1.55;
+  }
+  .foot__cols { display: flex; gap: 56px; flex-wrap: wrap; }
+  .foot__col h4 {
+    font-family: var(--mono); font-size: 10px;
+    color: var(--fg-3); letter-spacing: 0.12em;
+    text-transform: uppercase; margin-bottom: 14px;
+  }
+  .foot__col a {
+    display: block;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--fg-2); padding: 4px 0;
+    transition: color 150ms;
+  }
+  .foot__col a:hover { color: var(--lime); }
+  .foot__bottom {
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap;
+    padding-top: 24px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; color: var(--fg-3);
+    letter-spacing: 0.04em;
+  }
+  .foot__bottom .hash { color: var(--cyan); }
+
+  /* --- entrance animation -------------------------------------------- */
+
+  .reveal { opacity: 0; transform: translateY(12px); animation: revealIn 700ms var(--ease-out) forwards; }
+  .reveal.d1 { animation-delay: 100ms; }
+  .reveal.d2 { animation-delay: 200ms; }
+  .reveal.d3 { animation-delay: 320ms; }
+  .reveal.d4 { animation-delay: 440ms; }
+  .reveal.d5 { animation-delay: 560ms; }
+  @keyframes revealIn { to { opacity: 1; transform: translateY(0); } }
+
+</style>
+</head>
+<body>
+
+<div class="bg-fixed" aria-hidden="true"></div>
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="bg-noise" aria-hidden="true"></div>
+
+<!-- ============================================================== NAV -->
+<header class="nav">
+  <div class="wrap nav__inner">
+    <div class="brand">
+      <span class="brand__glyph" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3 7l9-4 9 4-9 4-9-4z" fill="#b4ff39" stroke="none" opacity="0.85"/>
+          <path d="M3 12l9 4 9-4" stroke="#b4ff39"/>
+          <path d="M3 17l9 4 9-4" stroke="#22d3ee"/>
+        </svg>
+      </span>
+      <span class="brand__name">janus<span class="slash">//</span>registry</span>
+      <span class="brand__ver">v1.0 · oci 1.1</span>
+    </div>
+
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#features">features</a>
+      <a href="#difference">vs. others</a>
+      <a href="#architecture">architecture</a>
+      <a href="#security">security</a>
+      <a href="#cli">cli</a>
+      <a href="#docs">docs</a>
+    </nav>
+
+    <div class="nav__cta">
+      <a class="btn btn--ghost btn--sm" href="https://github.com/steveokay/oci-janus" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56v-2.18c-3.2.7-3.87-1.36-3.87-1.36-.52-1.33-1.27-1.68-1.27-1.68-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.76 2.69 1.25 3.35.95.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.7 0-1.26.45-2.29 1.18-3.1-.12-.29-.51-1.46.11-3.05 0 0 .97-.31 3.18 1.18.92-.26 1.91-.39 2.9-.39s1.98.13 2.9.39c2.21-1.5 3.18-1.18 3.18-1.18.63 1.59.23 2.76.11 3.05.73.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.26 5.69.41.36.78 1.07.78 2.16v3.2c0 .31.21.68.8.56C20.21 21.39 23.5 17.08 23.5 12 23.5 5.65 18.35.5 12 .5z"/>
+        </svg>
+        github
+      </a>
+      <a class="btn btn--primary btn--sm" href="#quickstart">
+        deploy stack
+        <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================== HERO -->
+<section class="hero">
+  <div class="wrap hero__layout">
+    <div>
+      <div class="hero__eyebrow reveal">
+        <span class="chip">
+          <span class="dot"></span>
+          OCI distribution spec v1.1 · 75/75 passing
+        </span>
+      </div>
+
+      <h1 class="reveal d1">
+        Your container images.<br>
+        Your <span class="em">infrastructure</span>.<br>
+        <span class="strike">SaaS-only</span> sovereignty.
+      </h1>
+
+      <p class="hero__lede reveal d2">
+        Janus is a self-hosted, multi-tenant OCI registry built for teams that
+        treat their container supply chain as <em>critical infrastructure</em> —
+        not someone else's billing line item. mTLS between every service. Cosign
+        signing in the hot path. Immutable audit logs. Five storage backends.
+        Zero cloud lock-in.
+      </p>
+
+      <div class="hero__cta reveal d3">
+        <a class="btn btn--primary" href="#quickstart">
+          $ make dev
+          <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </a>
+        <a class="btn btn--ghost" href="#architecture">
+          inspect architecture
+        </a>
+      </div>
+
+      <div class="hero__sig reveal d4">
+        <span><span class="k">build</span> <span class="v">go 1.25.7</span></span>
+        <span class="sep">/</span>
+        <span><span class="k">services</span> <span class="v">13</span></span>
+        <span class="sep">/</span>
+        <span><span class="k">base</span> <span class="v">distroless</span></span>
+        <span class="sep">/</span>
+        <span><span class="k">license</span> <span class="v">apache-2.0</span></span>
+      </div>
+    </div>
+
+    <!-- terminal demo -->
+    <div class="reveal d2" style="position: relative;">
+      <div class="ticks" aria-hidden="true"><i></i></div>
+      <div class="terminal">
+        <div class="terminal__head">
+          <div class="terminal__dots"><span></span><span></span><span></span></div>
+          <div class="terminal__title">~ <span class="repo">janus.acme.io</span> · push.session</div>
+          <div class="terminal__title" style="font-size: 10px;">tnt_4a2b91</div>
+        </div>
+        <div class="terminal__body">
+          <span class="row"><span class="prompt">$</span><span class="cmd">docker push janus.acme.io/api:v1.4.0</span></span>
+          <span class="row"><span class="out">The push refers to repository [janus.acme.io/api]</span></span>
+          <span class="row"><span class="out">ad6cb4e6dfc1: </span><span class="ok">Pushed</span></span>
+          <span class="row"><span class="out">6c2c08b86058: </span><span class="ok">Pushed</span></span>
+          <span class="row"><span class="out">f9182a31cc44: </span><span class="ok">Pushed</span></span>
+          <span class="row"><span class="out">v1.4.0: digest: </span><span class="hash">sha256:bf4e4a…</span><span class="out"> size: 1156</span></span>
+          <span class="row gap"></span>
+          <span class="row"><span class="dim">⟨ pipeline ⟩</span></span>
+          <span class="row"><span class="ok">✓</span> <span class="cmd">cosign verified</span> <span class="dim">— ecdsa p-256 · sigstore</span></span>
+          <span class="row"><span class="ok">✓</span> <span class="cmd">trivy scan complete</span> <span class="dim">— 0 critical · 2 low</span></span>
+          <span class="row"><span class="ok">✓</span> <span class="cmd">audit pinned</span> <span class="dim">— immutable · 2026.06.20T14:22</span><span class="cursor"></span></span>
+        </div>
+
+        <div class="terminal__badge" aria-label="verified">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          signed · scanned · sealed
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== STATS -->
+<section class="section" style="padding-top: 0;">
+  <div class="wrap">
+    <div class="stats">
+      <div class="stats__cell">
+        <div class="label">conformance</div>
+        <div class="num">75<span class="unit">/75</span></div>
+        <div class="sub">OCI distribution-spec passing · 0 failures</div>
+      </div>
+      <div class="stats__cell">
+        <div class="label">surface</div>
+        <div class="num">13<span class="unit">svc</span></div>
+        <div class="sub">gRPC + mTLS · independently deployable</div>
+      </div>
+      <div class="stats__cell">
+        <div class="label">backends</div>
+        <div class="num">4<span class="unit">drv</span></div>
+        <div class="sub">MinIO · S3 · GCS · Azure Blob</div>
+      </div>
+      <div class="stats__cell">
+        <div class="label">lock-in</div>
+        <div class="num">0<span class="unit">deps</span></div>
+        <div class="sub">No proprietary cloud control plane</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== DIFFERENCE -->
+<section class="section" id="difference">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="lhs">
+        <span class="index">01 / vs. the field</span>
+        <h2>Most registries are <span class="em">hosting</span>.<br> Janus is <span class="em">infrastructure</span>.</h2>
+      </div>
+      <div class="rhs">
+        <div>updated <span class="v">2026.06.20</span></div>
+        <div>verified across the 4 leading registries</div>
+      </div>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp__head">capability</div>
+      <div class="cmp__head janus">janus</div>
+      <div class="cmp__head">docker hub</div>
+      <div class="cmp__head">aws ecr</div>
+      <div class="cmp__head">nexus / harbor</div>
+
+      <div class="cmp__row-label">Fully self-hosted</div>
+      <div class="col-janus"><span class="yes">yes</span></div>
+      <div><span class="no">no</span></div>
+      <div><span class="no">no</span></div>
+      <div><span class="yes">yes</span></div>
+
+      <div class="cmp__row-label">mTLS between every service</div>
+      <div class="col-janus"><span class="yes">enforced</span></div>
+      <div><span class="no">n/a</span></div>
+      <div><span class="no">tls-only</span></div>
+      <div><span class="meh">opt-in</span></div>
+
+      <div class="cmp__row-label">Per-tenant custom domains</div>
+      <div class="col-janus"><span class="yes">native</span></div>
+      <div><span class="no">no</span></div>
+      <div><span class="no">no</span></div>
+      <div><span class="meh">limited</span></div>
+
+      <div class="cmp__row-label">Cosign signing in the hot path</div>
+      <div class="col-janus"><span class="yes">built-in</span></div>
+      <div><span class="meh">addon</span></div>
+      <div><span class="meh">addon</span></div>
+      <div><span class="meh">addon</span></div>
+
+      <div class="cmp__row-label">Org · repo · tag RBAC, fully wired</div>
+      <div class="col-janus"><span class="yes">native</span></div>
+      <div><span class="meh">org-only</span></div>
+      <div><span class="meh">iam-glue</span></div>
+      <div><span class="meh">project-only</span></div>
+
+      <div class="cmp__row-label">SSO: SAML + OAuth/OIDC + 3 IdPs</div>
+      <div class="col-janus"><span class="yes">native</span></div>
+      <div><span class="meh">addon</span></div>
+      <div><span class="meh">iam-glue</span></div>
+      <div><span class="meh">opt-in</span></div>
+
+      <div class="cmp__row-label">Immutable PostgreSQL audit log</div>
+      <div class="col-janus"><span class="yes">append-only</span></div>
+      <div><span class="no">no</span></div>
+      <div><span class="meh">cloudtrail</span></div>
+      <div><span class="meh">events-only</span></div>
+
+      <div class="cmp__row-label">Pluggable scanner via JSON-RPC</div>
+      <div class="col-janus"><span class="yes">trivy + bring-own</span></div>
+      <div><span class="meh">snyk-only</span></div>
+      <div><span class="meh">enhanced-tier</span></div>
+      <div><span class="meh">trivy-only</span></div>
+
+      <div class="cmp__row-label">Storage backends (drivers)</div>
+      <div class="col-janus"><span class="yes">5 native</span></div>
+      <div><span class="no">opaque</span></div>
+      <div><span class="meh">s3-only</span></div>
+      <div><span class="meh">2–3</span></div>
+
+      <div class="cmp__row-label">OpenTelemetry, vendor-neutral</div>
+      <div class="col-janus"><span class="yes">jaeger·tempo·dd</span></div>
+      <div><span class="no">opaque</span></div>
+      <div><span class="meh">cloudwatch</span></div>
+      <div><span class="meh">opt-in</span></div>
+
+      <div class="cmp__row-label">Distroless production images</div>
+      <div class="col-janus"><span class="yes">debian12·nonroot</span></div>
+      <div><span class="no">n/a</span></div>
+      <div><span class="no">n/a</span></div>
+      <div><span class="meh">alpine</span></div>
+
+      <div class="cmp__row-label">SaaS billing per pull / GB</div>
+      <div class="col-janus"><span class="yes">never</span></div>
+      <div><span class="no">yes</span></div>
+      <div><span class="no">yes</span></div>
+      <div><span class="yes">never</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== FEATURES -->
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="lhs">
+        <span class="index">02 / the surface</span>
+        <h2>Thirteen services. <span class="em">One</span> coherent registry.</h2>
+      </div>
+      <div class="rhs">
+        <div>every service · grpc-first</div>
+        <div>independently scalable · independently failed</div>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <article class="card col-6">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M3 12h18" stroke-linecap="round"/><circle cx="12" cy="12" r="9"/></svg>
+        </div>
+        <h3 class="card__title">Per-tenant isolation, all the way down</h3>
+        <p class="card__body">
+          Every row carries a <span class="mono">tenant_id</span>. Every query filters on it.
+          PostgreSQL Row-Level Security is layered underneath as a second wall.
+          Each tenant gets its own custom hostname, its own storage prefix, its own
+          RabbitMQ routing key. Cross-tenant data simply cannot move.
+        </p>
+        <div class="card__meta">
+          <span class="k">guarantee //</span>
+          <span class="v">RLS + per-tenant storage prefix + mTLS SNI</span>
+        </div>
+      </article>
+
+      <article class="card col-6">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <h3 class="card__title">mTLS everywhere, not just at the edge</h3>
+        <p class="card__body">
+          Every internal gRPC call is mutually authenticated. cert-manager in
+          production, openssl-via-init-container in dev. Private keys are
+          <span class="mono">chmod 600</span>, owned by uid <span class="mono">65532</span> — the
+          distroless nonroot. Compromise one service and you still get nowhere.
+        </p>
+        <div class="card__meta">
+          <span class="k">crypto //</span>
+          <span class="v">x509 · cert-manager · zero plaintext hops</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m9 12 2 2 4-4"/><path d="M12 2 4 7v5c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7l-8-5z"/></svg>
+        </div>
+        <h3 class="card__title">Cosign signing, in the hot path</h3>
+        <p class="card__body">
+          Sigstore-compatible ECDSA P-256 signing. Private keys never leave
+          Vault — sign/verify is a transit-engine call. Notary v2 is on the
+          roadmap.
+        </p>
+        <div class="card__meta">
+          <span class="k">sigstore //</span>
+          <span class="v">ecdsa-p256 · vault-transit</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><path d="M21 4v6h-6"/></svg>
+        </div>
+        <h3 class="card__title">Pull-through proxy cache</h3>
+        <p class="card__body">
+          Cache Docker Hub, GHCR, gcr.io, quay.io. Credentials AES-256-GCM at
+          rest. SSRF-blocked against all private CIDRs at connection time.
+        </p>
+        <div class="card__meta">
+          <span class="k">upstream //</span>
+          <span class="v">aes-256-gcm · ssrf-hardened</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3" stroke-linecap="round"/></svg>
+        </div>
+        <h3 class="card__title">Pluggable vulnerability scanner</h3>
+        <p class="card__body">
+          External process JSON-RPC. Trivy by default. Pin the binary checksum
+          in env so a swapped scanner can't slip in.
+        </p>
+        <div class="card__meta">
+          <span class="k">contract //</span>
+          <span class="v">json-rpc · sha256-pinned</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6"/></svg>
+        </div>
+        <h3 class="card__title">Immutable audit log</h3>
+        <p class="card__body">
+          Append-only PostgreSQL partition. No <span class="mono">UPDATE</span>, no
+          <span class="mono">DELETE</span>. Every push, every login, every scan — sealed.
+        </p>
+        <div class="card__meta">
+          <span class="k">retention //</span>
+          <span class="v">partitioned · append-only</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 7 12 3 4 7m16 0-8 4-8-4m16 0v10l-8 4m0 0-8-4V7m8 14V11"/></svg>
+        </div>
+        <h3 class="card__title">Five storage drivers, one interface</h3>
+        <p class="card__body">
+          MinIO for dev. AWS S3, GCS, Azure Blob, or plain filesystem for prod.
+          The driver swap is one env variable.
+        </p>
+        <div class="card__meta">
+          <span class="k">drivers //</span>
+          <span class="v">minio · s3 · gcs · azure · fs</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12a9 9 0 0 1 18 0M3 12a9 9 0 0 0 18 0M12 3v18"/></svg>
+        </div>
+        <h3 class="card__title">Webhook delivery you can trust</h3>
+        <p class="card__body">
+          HMAC-signed bodies. Exponential backoff. Dead-letter routing. Tested
+          against the receiver crashing mid-flight.
+        </p>
+        <div class="card__meta">
+          <span class="k">delivery //</span>
+          <span class="v">hmac-sha256 · retried · dlq</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/><path d="m17 11 2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 class="card__title">RBAC, all the way to the tag</h3>
+        <p class="card__body">
+          Grant <span class="mono">read</span>, <span class="mono">write</span>, or
+          <span class="mono">admin</span> at org, repo, or individual tag. Every grant
+          and revoke lands in the immutable audit log. No "everyone-is-admin"
+          fallback.
+        </p>
+        <div class="card__meta">
+          <span class="k">scope //</span>
+          <span class="v">org · repo · tag · audited</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>
+        </div>
+        <h3 class="card__title">SSO with the providers you already run</h3>
+        <p class="card__body">
+          Hand-rolled SAML 2.0 and OAuth 2.0 with PKCE. Google, GitHub, and
+          Microsoft Entra wired out-of-the-box — or point it at any compliant
+          IdP. JIT user provisioning, group → role mapping.
+        </p>
+        <div class="card__meta">
+          <span class="k">identity //</span>
+          <span class="v">saml · oauth+pkce · 3 idps</span>
+        </div>
+      </article>
+
+      <article class="card col-4">
+        <div class="card__glyph">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 class="card__title">Observability you actually own</h3>
+        <p class="card__body">
+          OpenTelemetry on every service, every span. OTLP straight to Jaeger,
+          Grafana Tempo, Datadog, or stdout. Prometheus metrics on a dedicated
+          internal port. Structured JSON logs with <span class="mono">trace_id</span>
+          on every line.
+        </p>
+        <div class="card__meta">
+          <span class="k">exporters //</span>
+          <span class="v">jaeger · tempo · datadog · otlp</span>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== ARCHITECTURE -->
+<section class="section" id="architecture">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="lhs">
+        <span class="index">03 / the topology</span>
+        <h2>A gateway in front.<br> A <span class="em">mesh</span> behind. An async <span class="em">bus</span> below.</h2>
+      </div>
+      <div class="rhs">
+        <div>traefik · grpc-mtls · rabbitmq</div>
+        <div>scales out per-service, independently</div>
+      </div>
+    </div>
+
+    <div class="arch">
+      <div class="arch__grid" aria-hidden="true"></div>
+
+      <div class="arch__row">
+        <div class="node gw" style="grid-column: 1 / -1; text-align: center;">
+          <div class="node__name"><span class="pre">▶</span> registry-gateway · traefik</div>
+          <div class="node__role">TLS termination · host-based routing · per-tenant rate-limit · X-Tenant-ID injection</div>
+          <div class="node__port">:443 / :80</div>
+        </div>
+      </div>
+
+      <div class="arch__row">
+        <div class="node" style="grid-column: 1 / -1; background: linear-gradient(180deg, rgba(34,211,238,0.07), rgba(34,211,238,0.01)); border-color: rgba(34,211,238,0.30); text-align: center;">
+          <div class="node__name" style="color: var(--cyan);"><span class="pre" style="color: var(--cyan);">›</span> registry-management · REST BFF</div>
+          <div class="node__role">/api/v1/* for the React dashboard · translates REST → gRPC against every backend service</div>
+          <div class="node__port">:8091</div>
+        </div>
+      </div>
+
+      <div class="arch__row">
+        <div class="node">
+          <div class="node__port">:50051</div>
+          <div class="node__name"><span class="pre">›</span> registry-auth</div>
+          <div class="node__role">JWT (RS256) · api keys (argon2id) · RBAC · SSO</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50052</div>
+          <div class="node__name"><span class="pre">›</span> registry-core</div>
+          <div class="node__role">OCI distribution-spec v1.1 · /v2/ routes · blob upload</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50053</div>
+          <div class="node__name"><span class="pre">›</span> registry-storage</div>
+          <div class="node__role">storage abstraction · minio/s3/gcs/azure/fs</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50054</div>
+          <div class="node__name"><span class="pre">›</span> registry-metadata</div>
+          <div class="node__role">repos · tags · manifests · postgres + RLS</div>
+        </div>
+      </div>
+
+      <div class="arch__row">
+        <div class="node">
+          <div class="node__port">:50055</div>
+          <div class="node__name"><span class="pre">›</span> registry-proxy</div>
+          <div class="node__role">pull-through cache · upstream creds aes-256</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50056</div>
+          <div class="node__name"><span class="pre">›</span> registry-scanner</div>
+          <div class="node__role">trivy + pluggable · sha256-pinned plugin</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50057</div>
+          <div class="node__name"><span class="pre">›</span> registry-signer</div>
+          <div class="node__role">cosign signing · vault transit · ecdsa p-256</div>
+        </div>
+        <div class="node">
+          <div class="node__port">:50060</div>
+          <div class="node__name"><span class="pre">›</span> registry-tenant</div>
+          <div class="node__role">tenant lifecycle · custom domain mgmt</div>
+        </div>
+      </div>
+
+      <div class="arch__row">
+        <div class="node async">
+          <div class="node__port">amqp</div>
+          <div class="node__name"><span class="pre">~</span> registry-webhook</div>
+          <div class="node__role">hmac · backoff · DLQ</div>
+        </div>
+        <div class="node async">
+          <div class="node__port">amqp</div>
+          <div class="node__name"><span class="pre">~</span> registry-audit</div>
+          <div class="node__role">append-only audit writer</div>
+        </div>
+        <div class="node async">
+          <div class="node__port">cron</div>
+          <div class="node__name"><span class="pre">~</span> registry-gc</div>
+          <div class="node__role">mark-sweep · dry-run by default</div>
+        </div>
+        <div class="node async">
+          <div class="node__port">topic</div>
+          <div class="node__name"><span class="pre">~</span> rabbitmq · quorum</div>
+          <div class="node__role">registry.events fanout · scan.completed</div>
+        </div>
+      </div>
+
+      <div class="arch__legend">
+        <span><i class="i-gw"></i> ingress · single chokepoint</span>
+        <span><i style="background: rgba(34,211,238,0.3); border: 1px solid rgba(34,211,238,0.6);"></i> REST BFF · frontend gateway</span>
+        <span><i class="i-svc"></i> sync service · grpc + mTLS</span>
+        <span><i class="i-async"></i> async · rabbitmq fanout</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== SECURITY -->
+<section class="section" id="security">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="lhs">
+        <span class="index">04 / the threat model</span>
+        <h2>Security isn't a setting.<br> It's the <span class="em">build manifest</span>.</h2>
+      </div>
+      <div class="rhs">
+        <div>govulncheck · gosec · gitleaks · in CI</div>
+        <div>all medium+ findings resolved</div>
+      </div>
+    </div>
+
+    <div class="pillars">
+      <div class="pillar">
+        <span class="pillar__id">SEC · 001</span>
+        <h3 class="pillar__title">RS256 JWTs, JTI revocation, 5-min TTL</h3>
+        <p class="pillar__body">
+          Tokens are short-lived. Every validation hits Redis to confirm the JTI
+          hasn't been revoked. Key rotation is zero-downtime via JWKS.
+        </p>
+        <div class="pillar__hash"><span>verifier:</span> <span class="v">sha256:9a3f…b21c</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 002</span>
+        <h3 class="pillar__title">Argon2id passwords, never plaintext</h3>
+        <p class="pillar__body">
+          API keys are returned in plaintext exactly once — at creation. Stored
+          as Argon2id with fixed, non-configurable parameters that cannot be
+          weakened from config: t=3, m=64 MiB, p=2.
+        </p>
+        <div class="pillar__hash"><span>kdf:</span> <span class="v">argon2id · m=65536 · t=3 · p=2</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 003</span>
+        <h3 class="pillar__title">AES-256-GCM for upstream credentials</h3>
+        <p class="pillar__body">
+          Pull-through proxy passwords are encrypted at rest with a key loaded
+          from env at startup. Never logged, never database-stored in cleartext.
+        </p>
+        <div class="pillar__hash"><span>cipher:</span> <span class="v">aes-256-gcm · key from env</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 004</span>
+        <h3 class="pillar__title">SSRF firewall on upstream registries</h3>
+        <p class="pillar__body">
+          Every upstream URL is checked against private/loopback CIDRs at
+          registration and on every connection — RFC 1918, link-local, CGNAT,
+          IPv6 ULA all blocked.
+        </p>
+        <div class="pillar__hash"><span>cidr-deny:</span> <span class="v">10/8 · 172.16/12 · 192.168/16 · ::1</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 005</span>
+        <h3 class="pillar__title">Frontend token in memory, never localStorage</h3>
+        <p class="pillar__body">
+          The React UI keeps bearer tokens in a Zustand store — process memory,
+          tab-scoped, gone on refresh. Silent refresh 60s before expiry.
+        </p>
+        <div class="pillar__hash"><span>store:</span> <span class="v">zustand · no-persist · 60s-refresh</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 006</span>
+        <h3 class="pillar__title">Distroless final images, uid 65532</h3>
+        <p class="pillar__body">
+          <span class="mono">gcr.io/distroless/static-debian12</span>, nonroot, no
+          shell, no package manager. The scanner runs on debian-slim — Trivy
+          needs shared libs — and that exception is the only one.
+        </p>
+        <div class="pillar__hash"><span>base:</span> <span class="v">distroless/static · 1 documented exception</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 007</span>
+        <h3 class="pillar__title">RBAC at org · repo · tag, audited</h3>
+        <p class="pillar__body">
+          Every grant, every revoke, every check is a log line. The frontend
+          calls <span class="mono">GetUserPermissions</span> on route load so the UI
+          can't show actions the backend will reject.
+        </p>
+        <div class="pillar__hash"><span>scope:</span> <span class="v">org · repo · tag · 3 roles</span></div>
+      </div>
+
+      <div class="pillar">
+        <span class="pillar__id">SEC · 008</span>
+        <h3 class="pillar__title">SAML + OAuth, hand-rolled, audited</h3>
+        <p class="pillar__body">
+          OAuth 2.0 with PKCE. SAML 2.0 with signature + assertion-encryption
+          checks. Google / GitHub / Microsoft Entra preconfigured. No
+          npm-package-of-the-day in the auth path.
+        </p>
+        <div class="pillar__hash"><span>protocol:</span> <span class="v">saml2 · oauth2 · pkce</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== CLI -->
+<section class="section" id="cli">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="lhs">
+        <span class="index">05 / the surface developers actually touch</span>
+        <h2>It's just <span class="em">Docker</span>. <br>It's just <span class="em">Helm</span>. It's just <span class="em">JWT</span>.</h2>
+      </div>
+      <div class="rhs">
+        <div>no proprietary cli · no vendor sdk</div>
+        <div>integrates with anything that speaks OCI</div>
+      </div>
+    </div>
+
+    <div class="cli">
+      <div class="cli__tabs" role="tablist">
+        <button class="cli__tab active" data-tab="push" role="tab" aria-selected="true">
+          <span>push image</span><span class="ix">01</span>
+        </button>
+        <button class="cli__tab" data-tab="sign" role="tab" aria-selected="false">
+          <span>sign image</span><span class="ix">02</span>
+        </button>
+        <button class="cli__tab" data-tab="scan" role="tab" aria-selected="false">
+          <span>scan image</span><span class="ix">03</span>
+        </button>
+        <button class="cli__tab" data-tab="proxy" role="tab" aria-selected="false">
+          <span>pull-through</span><span class="ix">04</span>
+        </button>
+        <button class="cli__tab" data-tab="audit" role="tab" aria-selected="false">
+          <span>audit query</span><span class="ix">05</span>
+        </button>
+      </div>
+
+      <div class="cli__panel terminal">
+        <div class="terminal__head">
+          <div class="terminal__dots"><span></span><span></span><span></span></div>
+          <div class="terminal__title">~ <span class="repo">janus.acme.io</span> · cli</div>
+          <div class="terminal__title" style="font-size: 10px;">tnt_4a2b91</div>
+        </div>
+
+        <div class="cli__view active" data-view="push">
+<pre><span class="prompt">$</span> <span class="cmd">docker login janus.acme.io -u alice --password-stdin &lt; api-key.txt</span>
+<span class="dim">Login Succeeded — token cached in ~/.docker/config.json (15m)</span>
+
+<span class="prompt">$</span> <span class="cmd">docker tag api:1.4.0 janus.acme.io/team-backend/api:1.4.0</span>
+<span class="prompt">$</span> <span class="cmd">docker push janus.acme.io/team-backend/api:1.4.0</span>
+<span class="dim">The push refers to repository [janus.acme.io/team-backend/api]</span>
+ad6cb4e6dfc1: <span class="ok">Pushed</span>
+6c2c08b86058: <span class="ok">Pushed</span>
+f9182a31cc44: <span class="ok">Pushed</span>
+1.4.0: digest: <span class="hash">sha256:bf4e4a7…</span> size: 1156
+
+<span class="dim">[ async pipeline fans out via rabbitmq ]</span>
+<span class="ok">→</span> registry-scanner picked up scan_id=scn_8c11a2
+<span class="ok">→</span> registry-signer signing manifest @sha256:bf4e4a7…
+<span class="ok">→</span> registry-audit pinned tag=1.4.0 by user_id=u_alice</pre>
+        </div>
+
+        <div class="cli__view" data-view="sign">
+<pre><span class="prompt">$</span> <span class="cmd">cosign sign \</span>
+    <span class="cmd">--key vault://janus/signing/team-backend \</span>
+    <span class="cmd">janus.acme.io/team-backend/api@sha256:bf4e4a7…</span>
+
+<span class="dim">Loading key from Vault transit engine…</span>
+<span class="dim">Generating signature payload for the manifest digest.</span>
+<span class="ok">tlog entry created with index: 4882190</span>
+<span class="ok">Pushing signature to: janus.acme.io/team-backend/api</span>
+
+<span class="prompt">$</span> <span class="cmd">cosign verify \</span>
+    <span class="cmd">--certificate-identity-regexp=".*@acme.io" \</span>
+    <span class="cmd">janus.acme.io/team-backend/api:1.4.0</span>
+
+<span class="ok">Verification for janus.acme.io/team-backend/api:1.4.0 --</span>
+<span class="ok">The following checks were performed:</span>
+  <span class="ok">✓</span> The cosign claims were validated
+  <span class="ok">✓</span> The signature matches the manifest digest
+  <span class="ok">✓</span> The rekor log entry was verified</pre>
+        </div>
+
+        <div class="cli__view" data-view="scan">
+<pre><span class="prompt">$</span> <span class="cmd">janusctl scan get janus.acme.io/team-backend/api:1.4.0</span>
+
+<span class="dim">Fetching latest scan from registry-scanner…</span>
+<span class="dim">image:     janus.acme.io/team-backend/api:1.4.0</span>
+<span class="dim">digest:    </span><span class="hash">sha256:bf4e4a7…</span>
+<span class="dim">scanner:   trivy 0.56.2 (plugin sha256:</span><span class="hash">8e1b…f042</span><span class="dim">)</span>
+<span class="dim">duration:  4.3s</span>
+
+severity          count
+<span class="warn">CRITICAL</span>          0
+<span class="warn">HIGH</span>              0
+MEDIUM            3
+LOW               7
+UNKNOWN           1
+
+<span class="dim">[ webhooks fanned out to: slack#deploys, pagerduty:p1-only ]</span>
+<span class="ok">→ status: passing</span></pre>
+        </div>
+
+        <div class="cli__view" data-view="proxy">
+<pre><span class="prompt">$</span> <span class="cmd">janusctl upstream register \</span>
+    <span class="cmd">--name dockerhub --url https://registry-1.docker.io \</span>
+    <span class="cmd">--username acme-bot --password-stdin &lt; .secret</span>
+
+<span class="dim">Verifying upstream reachability…</span>
+<span class="dim">SSRF check: hostname resolves to 3.94.x.x — allowed.</span>
+<span class="ok">→ upstream registered as 'dockerhub' (encrypted aes-256-gcm)</span>
+
+<span class="prompt">$</span> <span class="cmd">docker login janus.acme.io:8084</span>
+<span class="prompt">$</span> <span class="cmd">docker pull janus.acme.io:8084/cache/dockerhub/library/alpine:3.20</span>
+<span class="dim">3.20: Pulling from cache/dockerhub/library/alpine</span>
+<span class="dim">[upstream miss → fetched → cached]</span>
+Digest: <span class="hash">sha256:beefdead…</span>
+Status: Downloaded newer image — <span class="ok">future pulls served from cache</span></pre>
+        </div>
+
+        <div class="cli__view" data-view="audit">
+<pre><span class="prompt">$</span> <span class="cmd">janusctl audit query \</span>
+    <span class="cmd">--tenant tnt_4a2b91 --since 24h --action push</span>
+
+<span class="dim">queried registry-audit (postgres · append-only partition)</span>
+
+ts                     actor       action  resource                       digest
+─────────────────────  ──────────  ──────  ─────────────────────────────  ─────────────
+2026-06-20T14:22:11Z   u_alice     push    team-backend/api:1.4.0         <span class="hash">sha256:bf4…</span>
+2026-06-20T13:09:54Z   u_bob       push    team-backend/worker:v2.3       <span class="hash">sha256:c81…</span>
+2026-06-20T11:48:02Z   ci-deploy   push    team-platform/edge:nightly     <span class="hash">sha256:0a2…</span>
+
+<span class="dim">[ rows are immutable · no UPDATE / DELETE permitted on this partition ]</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== CTA / QUICKSTART -->
+<section id="quickstart">
+  <div class="wrap">
+    <div class="cta">
+      <div class="cta__inner">
+        <div>
+          <h3>Spin up the entire stack in <span class="em">sixty seconds</span>.</h3>
+          <p>
+            Docker Compose for dev. Helm umbrella chart for production. Thirteen
+            services, five backing stores, full mTLS — one command.
+          </p>
+          <div class="cta__buttons">
+            <a class="btn btn--primary" href="https://github.com/steveokay/oci-janus" target="_blank" rel="noopener">
+              clone the repo
+              <svg class="arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+            </a>
+            <a class="btn btn--ghost" href="#docs">read the docs</a>
+          </div>
+        </div>
+
+        <div class="cta__code">
+          <div><span class="prompt">$</span><span class="cmd">git clone github.com/steveokay/oci-janus</span></div>
+          <div><span class="prompt">$</span><span class="cmd">cd oci-janus</span></div>
+          <div><span class="prompt">$</span><span class="cmd">cp infra/docker-compose/.env.example .env</span></div>
+          <div><span class="prompt">$</span><span class="cmd">make dev-certs && docker compose up -d</span></div>
+          <div class="out">&nbsp;</div>
+          <div class="out">✓ postgres ready &nbsp;✓ redis &nbsp;✓ rabbitmq &nbsp;✓ minio</div>
+          <div class="out">✓ vault unsealed &nbsp;✓ certs minted &nbsp;✓ jwks published</div>
+          <div class="out">✓ 13 services healthy &nbsp;→ <span style="color:var(--lime)">https://janus.localhost</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================== FOOTER -->
+<footer class="foot" id="docs">
+  <div class="wrap">
+    <div class="foot__top">
+      <div class="foot__brand">
+        <div class="brand">
+          <span class="brand__glyph">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M3 7l9-4 9 4-9 4-9-4z" fill="#b4ff39" stroke="none" opacity="0.85"/>
+              <path d="M3 12l9 4 9-4" stroke="#b4ff39"/>
+              <path d="M3 17l9 4 9-4" stroke="#22d3ee"/>
+            </svg>
+          </span>
+          <span class="brand__name">janus<span class="slash">//</span>registry</span>
+        </div>
+        <p>
+          A sovereign OCI registry for teams that take their container supply
+          chain seriously. Open source. Apache 2.0. No vendor mailing list.
+        </p>
+      </div>
+
+      <div class="foot__cols">
+        <div class="foot__col">
+          <h4>// product</h4>
+          <a href="#features">features</a>
+          <a href="#difference">vs. others</a>
+          <a href="#architecture">architecture</a>
+          <a href="#cli">cli</a>
+        </div>
+        <div class="foot__col">
+          <h4>// developers</h4>
+          <a href="#">quickstart</a>
+          <a href="#">api reference</a>
+          <a href="#">helm charts</a>
+          <a href="#">conformance</a>
+        </div>
+        <div class="foot__col">
+          <h4>// project</h4>
+          <a href="https://github.com/steveokay/oci-janus">github</a>
+          <a href="#">changelog</a>
+          <a href="#">security policy</a>
+          <a href="#">license</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot__bottom">
+      <span>© 2026 · oci-janus contributors · apache-2.0</span>
+      <span>commit <span class="hash">d4f2e91</span> · built 2026.06.20T11:04Z</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* CLI tab switcher — keep it tiny, no framework. */
+  (function () {
+    const tabs  = document.querySelectorAll(".cli__tab");
+    const views = document.querySelectorAll(".cli__view");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const key = tab.getAttribute("data-tab");
+        tabs.forEach((t) => {
+          t.classList.toggle("active", t === tab);
+          t.setAttribute("aria-selected", t === tab ? "true" : "false");
+        });
+        views.forEach((v) => v.classList.toggle("active", v.getAttribute("data-view") === key));
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>

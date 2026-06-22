@@ -548,10 +548,6 @@
     font-size: 13px;
   }
   @media (max-width: 880px) { .cmp { font-size: 12px; grid-template-columns: 1.6fr repeat(4, minmax(70px, 1fr)); } }
-  @media (max-width: 640px) {
-    .cmp { display: block; }
-    .cmp > div { display: grid; grid-template-columns: 1.4fr 1fr; }
-  }
   .cmp > div {
     padding: 14px 18px;
     border-top: 1px solid var(--line);
@@ -574,6 +570,66 @@
   .cmp .no::before  { content: "○ "; }
   .cmp .meh::before { content: "◐ "; }
   .cmp .col-janus { background: linear-gradient(180deg, rgba(180,255,57,0.04), rgba(180,255,57,0.01)); }
+
+  /* mobile: stack each capability as a card with labeled vendor rows */
+  @media (max-width: 720px) {
+    .cmp {
+      display: block;
+      border: 0;
+      background: transparent;
+      backdrop-filter: none;
+      overflow: visible;
+      font-size: 13px;
+    }
+    .cmp .cmp__head { display: none; }
+    .cmp > div {
+      border: 0;
+      padding: 10px 16px;
+      background: var(--glass-1);
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    /* capability label = top of card (every 5n+1, skipping hidden headers) */
+    .cmp > div.cmp__row-label {
+      margin-top: 14px;
+      padding: 14px 16px 10px;
+      border-top: 1px solid var(--line);
+      border-top-left-radius: var(--radius-lg);
+      border-top-right-radius: var(--radius-lg);
+      backdrop-filter: blur(20px);
+      font-size: 14px;
+      color: var(--fg);
+      font-weight: 600;
+      display: block;
+    }
+    /* last vendor cell of group (nexus) = bottom of card */
+    .cmp > div:nth-child(5n) {
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+      border-bottom-left-radius: var(--radius-lg);
+      border-bottom-right-radius: var(--radius-lg);
+    }
+    /* inject vendor labels in front of each value */
+    .cmp > div:nth-child(5n+2)::before,
+    .cmp > div:nth-child(5n+3)::before,
+    .cmp > div:nth-child(5n+4)::before,
+    .cmp > div:nth-child(5n)::before {
+      color: var(--fg-3);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: lowercase;
+      margin-right: auto;
+    }
+    .cmp > div:nth-child(5n+2)::before { content: "janus"; color: var(--lime); }
+    .cmp > div:nth-child(5n+3)::before { content: "docker hub"; }
+    .cmp > div:nth-child(5n+4)::before { content: "aws ecr"; }
+    .cmp > div:nth-child(5n)::before   { content: "nexus / harbor"; }
+  }
 
   /* --- features grid -------------------------------------------------- */
 
